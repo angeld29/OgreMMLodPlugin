@@ -1,5 +1,6 @@
 /*.suo
 /*.sdf
+*.opensdf
 Release/
 Debug/
 /ipch/
