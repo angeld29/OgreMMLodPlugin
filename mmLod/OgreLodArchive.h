@@ -58,14 +58,15 @@ class LODArchive : public Ogre::Archive
 		Ogre::String   dirname;
 		std::vector<lod_item_s> files;
 	protected:
-		Ogre::SharedPtr<std::ifstream> stream; 
+		//Ogre::SharedPtr<std::ifstream> stream; 
+		std::ifstream* stream; 
 	private:
 		Ogre::DataStreamPtr loadDataDefault(const char*buff, int size) const;
 		Ogre::DataStreamPtr loadDataSprite(const char*buff, int size) const;
 		Ogre::DataStreamPtr loadDataMap(const char*buff, int size) const;
 		LodResourceType GetResourceType(const char*buff) const;
 	public:
-       LODArchive (const Ogre::String& name);
+       LODArchive (const Ogre::String& name, const String& archType );
         ~LODArchive ();
 
         /// @copydoc Archive::isCaseSensitive
@@ -110,16 +111,16 @@ public:
     /// @copydoc FactoryObj::getType
     const Ogre::String& getType(void) const
 	{
-        static Ogre::String name = "Lod";
+		static Ogre::String name = "Lod";
         return name;
 	};
     /// @copydoc FactoryObj::createInstance
     Ogre::Archive *createInstance( const Ogre::String& name ) 
     {
-        return OGRE_NEW LODArchive(name);
+        return OGRE_NEW LODArchive(name, "Lod");
     }
     /// @copydoc FactoryObj::destroyInstance
-    void destroyInstance( Ogre::Archive* arch) { delete arch; }
+    void destroyInstance( Ogre::Archive* arch) { OGRE_DELETE arch; }
 };
 }
 #endif

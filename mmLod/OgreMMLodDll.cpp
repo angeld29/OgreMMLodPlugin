@@ -52,13 +52,13 @@ namespace Ogre {
     extern "C" _OgreSampleExport void dllStartPlugin(void)
     {
         MTGACodec::startup();
-		lf = new LODArchiveFactory();
+		lf = OGRE_NEW LODArchiveFactory();
 		Ogre::ArchiveManager::getSingleton().addArchiveFactory( lf );
     }
     extern "C" _OgreSampleExport void dllStopPlugin(void)
     {
         MTGACodec::shutdown();
-		delete lf;
+		OGRE_DELETE lf;
     }
 
 }

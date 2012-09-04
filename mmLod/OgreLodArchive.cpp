@@ -28,50 +28,25 @@
 #include "OgreRoot.h"
 
 namespace Ogre {
-class LodDataStream : public Ogre::DataStream
-{
-protected:
-	size_t offset,length,pos;
-	Ogre::SharedPtr<std::ifstream> stream;
-public:
-    /// Unnamed constructor
-    LodDataStream(Ogre::SharedPtr<std::ifstream> _stream, size_t _offset, size_t _length);
-    /// Constructor for creating named streams
-    LodDataStream(const Ogre::String& name, Ogre::SharedPtr<std::ifstream> _stream, size_t _offset, size_t _length);
-	~LodDataStream();
-    /// @copydoc DataStream::read
-    size_t read(void* buf, size_t count);
-	/// @copydoc DataStream::write
-	size_t write(void* buf, size_t count);
-    /// @copydoc DataStream::skip
-    void skip(long count);
-    /// @copydoc DataStream::seek
-    void seek( size_t _pos );
-    /// @copydoc DataStream::seek
-    size_t tell(void) const;
-    /// @copydoc DataStream::eof
-    bool eof(void) const;
-    /// @copydoc DataStream::close
-    void close(void);
-};
-
 //-----------------------------------------------------------------------
 //LODArchive
 //-----------------------------------------------------------------------
-LODArchive::LODArchive (const Ogre::String& name )
-	: Archive(name, "LOD"), version(LOD_MM6), lod_type(LOD_DEFAULT)
+LODArchive::LODArchive (const Ogre::String& name, const String& archType )
+: Archive(name, archType), version(LOD_MM6), lod_type(LOD_DEFAULT), stream(new std::ifstream())
 {
 }
 //-----------------------------------------------------------------------
 LODArchive::~LODArchive ()
 {
 	unload();
+	delete stream;
 }
 //-----------------------------------------------------------------------
 void LODArchive::load()
 {
+	
 	std::ios::openmode mode = std::ios::in | std::ios::binary;
-	stream = Ogre::SharedPtr<std::ifstream>(new std::ifstream());
+	//stream = Ogre::SharedPtr<std::ifstream>(OGRE_NEW std::ifstream());
 	stream->open(mName.c_str(),mode);
 	if(stream->fail())
 	{
@@ -85,7 +60,7 @@ void LODArchive::load()
 	stream->read(strbuff,0x10);
 	if( strcmp(strbuff,"LOD"))
 	{
-		stream -> close();
+		stream->close();
 		OGRE_EXCEPT(Ogre::Exception::ERR_FILE_NOT_FOUND, 
 			"Incorrect LOD File: " + mName, 
 			"LODArchive::load");
@@ -134,7 +109,6 @@ void LODArchive::unload()
 //-----------------------------------------------------------------------
 Ogre::DataStreamPtr LODArchive::open(const Ogre::String& filename, bool readOnly ) const
 {
-	
 	std::vector<lod_item_s>::const_iterator it = std::find_if(files.begin(),files.end(), find_filename(filename));
 	if(it == files.end())
 	{
@@ -160,7 +134,7 @@ Ogre::DataStreamPtr LODArchive::open(const Ogre::String& filename, bool readOnly
 		ptr = loadDataDefault(buff,(*it).size);
 		break;
 	default:
-		ptr = Ogre::DataStreamPtr(new Ogre::MemoryDataStream(buff,(*it).size, true));
+		ptr = Ogre::DataStreamPtr(OGRE_NEW Ogre::MemoryDataStream(buff,(*it).size, true));
 		break;
 	}
 	if( ptr.isNull() )
@@ -168,7 +142,7 @@ Ogre::DataStreamPtr LODArchive::open(const Ogre::String& filename, bool readOnly
 		Ogre::LogManager::getSingleton().logMessage(
                 mName + " - Error load file " + filename);
 		
-		ptr = Ogre::DataStreamPtr(new Ogre::MemoryDataStream(buff,(*it).size, true));
+		ptr = Ogre::DataStreamPtr(OGRE_NEW Ogre::MemoryDataStream(buff,(*it).size, true));
 	}
 	else
 		OGRE_FREE(buff,Ogre::MEMCATEGORY_GENERAL);
@@ -227,7 +201,7 @@ Ogre::DataStreamPtr LODArchive::loadDataDefault(const char*buff, int size) const
 	int restype = GetResourceType(buff);
 	int hdrsize = (restype == LodResource_Bitmap )?0x28:0x8;
 	
-	Ogre::MemoryDataStreamPtr ptr(new Ogre::MemoryDataStream(unpsize + addsize+hdrsize ));
+	Ogre::MemoryDataStreamPtr ptr(OGRE_NEW Ogre::MemoryDataStream(unpsize + addsize+hdrsize ));
 	unsigned char*hdrdata = ptr->getPtr();
 	memset(hdrdata,0,hdrsize);
 	*(int*)(hdrdata)= GetResourceType(buff);
@@ -267,7 +241,7 @@ Ogre::DataStreamPtr LODArchive::loadDataSprite(const char*buff, int size) const
                 mName + " LODArchive::loadDataSprite: incorrect sprite data size ");
 		return Ogre::DataStreamPtr();
 	}
-	Ogre::MemoryDataStreamPtr ptr(new Ogre::MemoryDataStream(unpsize + 8 +hdrsize));
+	Ogre::MemoryDataStreamPtr ptr(OGRE_NEW Ogre::MemoryDataStream(unpsize + 8 +hdrsize));
 	int* hdrdata = (int*)ptr->getPtr();
 	hdrdata[0] = LodResource_Sprite;
 	hdrdata[1] = version;
@@ -311,7 +285,7 @@ Ogre::DataStreamPtr LODArchive::loadDataMap(const char*buff, int size) const
                 mName + " LODArchive::loadDataMap: invalid mapsize : "+ Ogre::StringConverter::toString(psize) );
 			return Ogre::DataStreamPtr();
 	}*/
-	Ogre::MemoryDataStreamPtr ptr(new Ogre::MemoryDataStream(unpsize + 8 ));
+	Ogre::MemoryDataStreamPtr ptr(OGRE_NEW Ogre::MemoryDataStream(unpsize + 8 ));
 	int* hdrdata = (int*)ptr->getPtr();
 	hdrdata[0] = LodResource_Map;
 	hdrdata[1] = mapversion;
@@ -351,7 +325,7 @@ Ogre::StringVectorPtr LODArchive::list(bool recursive, bool dirs)
 {
     std::vector<lod_item_s>::const_iterator it = files.begin();
 	   
-	Ogre::StringVectorPtr ptr = Ogre::StringVectorPtr(new Ogre::StringVector());
+	Ogre::StringVectorPtr ptr = Ogre::StringVectorPtr(OGRE_NEW Ogre::StringVector());
 	for( std::vector<lod_item_s>::const_iterator it = files.begin(); it < files.end(); it++)
 	{
 		ptr->push_back((*it).fname);
@@ -366,7 +340,7 @@ Ogre::StringVectorPtr LODArchive::list(bool recursive, bool dirs)
 Ogre::FileInfoListPtr LODArchive::listFileInfo(bool recursive, bool dirs )
 {
     //!!!not implemented
-	Ogre::FileInfoListPtr ptr = Ogre::FileInfoListPtr(new Ogre::FileInfoList());
+	Ogre::FileInfoListPtr ptr = Ogre::FileInfoListPtr(OGRE_NEW Ogre::FileInfoList());
     return ptr;
 }
 
@@ -377,7 +351,7 @@ Ogre::FileInfoListPtr LODArchive::listFileInfo(bool recursive, bool dirs )
 Ogre::StringVectorPtr LODArchive::find(const Ogre::String& pattern, bool recursive, bool dirs)
 {
     //!!!not implemented
-    Ogre::StringVectorPtr ptr = Ogre::StringVectorPtr(new Ogre::StringVector());
+    Ogre::StringVectorPtr ptr = Ogre::StringVectorPtr(OGRE_NEW Ogre::StringVector());
     std::vector<lod_item_s>::iterator it = files.begin();
 	for(;;)
 	{
@@ -394,7 +368,7 @@ Ogre::StringVectorPtr LODArchive::find(const Ogre::String& pattern, bool recursi
 Ogre::FileInfoListPtr LODArchive::findFileInfo(const Ogre::String& pattern, bool recursive,  bool dirs)
 {
 	//need
-	Ogre::FileInfoListPtr ptr = Ogre::FileInfoListPtr(new Ogre::FileInfoList());
+	Ogre::FileInfoListPtr ptr = Ogre::FileInfoListPtr(OGRE_NEW Ogre::FileInfoList());
     std::vector<lod_item_s>::iterator it = files.begin();
 	for(;;)
 	{
@@ -423,78 +397,5 @@ bool LODArchive::exists(const Ogre::String& filename)
 //-----------------------------------------------------------------------
 time_t LODArchive::getModifiedTime(const Ogre::String& filename) { return 0; }
 //-----------------------------------------------------------------------
-//LodDataStream
-//-----------------------------------------------------------------------
-LodDataStream::LodDataStream(Ogre::SharedPtr<std::ifstream> _stream, size_t _offset, size_t _length)
-	: stream(_stream), offset(_offset), length(_length), pos(0)
-{
-	 assert(offset >= 0);
-	 assert(length >= 0);
-	 assert(stream->is_open());
-	 mSize = _length;
 
-      // Make sure we can actually fit inside the source stream
-     //assert(stream->size() >= offset + length);
-
-}
-//-----------------------------------------------------------------------
-LodDataStream::LodDataStream(const Ogre::String& name, Ogre::SharedPtr<std::ifstream> _stream, size_t _offset, size_t _length)
-	: Ogre::DataStream(name), stream(_stream), offset(_offset), length(_length), pos(0)
-{
-	 assert(offset >= 0);
-	 assert(length >= 0);
-	 assert(stream->is_open());
-	 mSize = _length;
-      // Make sure we can actually fit inside the source stream
-      //assert(stream->size() >= offset+length);
-}
-LodDataStream::~LodDataStream()
-{
-//	std::cout << "~LodDataStream" << std::endl;
-}
-size_t LodDataStream::read(void* buf, size_t count)
-{
-	// Check that we're not reading past our slice
-    if(count > length-pos)
-		count = length-pos;
-
-    // Seek into place and start reading
-    stream->seekg(offset+pos);
-	stream->read(static_cast<char*>(buf), count);
-    count = (size_t)stream->gcount();
-
-    pos += count;
-    assert(pos <= length);
-    return count;
-}
-size_t LodDataStream::write(void* buf, size_t count)
-{
-	// not supported
-	return 0;
-}
-void LodDataStream::skip(long count)
-{
-	pos += count;
-	if( pos < 0) 
-		pos = 0;
-	if( pos > length) 
-		pos = length;
-}
-void LodDataStream::seek( size_t _pos )
-{
-	pos = _pos;
-    if(pos > length) pos = length;
-
-}
-size_t LodDataStream::tell(void) const
-{
-	return pos;
-}
-bool LodDataStream::eof(void) const
-{
-	return tell() >= length;
-}
-void LodDataStream::close(void)
-{
-}
 }

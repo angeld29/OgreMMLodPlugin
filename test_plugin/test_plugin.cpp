@@ -37,7 +37,7 @@ void SaveStreamToFile(const Ogre::String& fname )
 	std::ios::openmode mode = std::ios::binary | std::ios::out;
 	std::ofstream rwStream;
 	data->read(buff,data->size());
-	rwStream.open(savePath+fname, mode);
+	rwStream.open((savePath+fname).c_str(), mode);
 	rwStream.write(buff,data->size());
 	rwStream.close();
 	delete[] buff;
@@ -70,6 +70,7 @@ int _tmain(int argc, _TCHAR* argv[])
 	InitMM();
 	//TestArchive();
 	SaveStreamToFile("2DEvents.txt");
+	SaveStreamToFile("2HAxe1");
 	Ogre::Image img;
 	img.load(Ogre::String("WtrdrXNW"),"General");
 	img.save(savePath + "WtrdrXNW.png");
